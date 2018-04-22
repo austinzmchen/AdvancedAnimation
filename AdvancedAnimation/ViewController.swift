@@ -13,24 +13,28 @@ import UIKit
  */
 class ViewController: UIViewController {
 
+    @IBOutlet weak var backButton: UIButton!
+    @IBOutlet weak var blurView: UIVisualEffectView!
     @IBOutlet weak var containerView: UIView!
-    var state: State = .Collapsed
+    
+    var state: State = .collapsed
     
     enum State {
-        case Expanded
-        case Collapsed
+        case expanded
+        case collapsed
         
-        var other: State {
+        var nextState: State {
             switch self {
-            case .Expanded:
-                return .Collapsed
-            case .Collapsed:
-                return .Expanded
+            case .expanded:
+                return .collapsed
+            case .collapsed:
+                return .expanded
             }
         }
     }
     
     var runningAnimators = [UIViewPropertyAnimator]()
+    private var commentVC: CommentViewController!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -40,11 +44,22 @@ class ViewController: UIViewController {
         let panGesture = UIPanGestureRecognizer(target: self, action: #selector(panned(recognizer:)) )
         containerView.addGestureRecognizer(tapGesture)
         containerView.addGestureRecognizer(panGesture)
+        
+        // initial values
+        blurView.effect = nil
+        
+        self.commentVC.openTitleLabel.alpha = 0
+    }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "embedVC" {
+            commentVC = segue.destination as! CommentViewController
+        }
     }
 
     // MARK: non-interactive
     @objc func tapped(recognizer: UITapGestureRecognizer) {
-        animateOrReverseRunningTransition(state: state.other, duration: kDuration)
+        animateOrReverseRunningTransition(state: state.nextState, duration: kDuration)
     }
     
     var interrupted = false
@@ -54,26 +69,17 @@ class ViewController: UIViewController {
     // MARK: interactive
     @objc func panned(recognizer: UIPanGestureRecognizer) {
         let t = recognizer.translation(in: view)
-        let r = t.y / view.bounds.height
+        var r = t.y / view.bounds.height
         
         switch recognizer.state {
         case .began:
-            startInteractiveTransition(state: state.other, duration: kDuration)
-            if interrupted {
-                progressWhenInterrupted = fComplete // assume first animator represents all
-//                print("progressWhenInterrupted: \(progressWhenInterrupted)")
-            }
+            startInteractiveTransition(state: state.nextState, duration: kDuration)
         case .changed:
-//            print("r: \(r),    p: \(progressWhenInterrupted)")
-            updateInteractiveTransition(fractionComplete: abs(r + progressWhenInterrupted))
+            r = state.nextState == .expanded ? -r : r
+            updateInteractiveTransition(fractionComplete: r + progressWhenInterrupted)
         case .ended:
-            fComplete = runningAnimators.first?.fractionComplete ?? 0
-            progressWhenInterrupted = 0
-            
-            let cancel = abs(r) < 0.5
+            let cancel = abs(r) < 0.2
             continueInteractiveTransition(cancel: cancel)
-            
-            
         default:
             break
         }
@@ -81,29 +87,124 @@ class ViewController: UIViewController {
     
     func animateTransitionIfNeeded(state: State, duration: TimeInterval) {
         if runningAnimators.isEmpty {
+            // frame
             let frameAnimator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
                 switch state {
-                case .Expanded:
-                    self.containerView.frame = self.view.bounds
-                case .Collapsed:
+                case .expanded:
+                    var b = self.view.bounds
+                    b.origin.y = 100
+                    self.containerView.frame = b
+                case .collapsed:
                     var f = self.containerView.frame
                     f.origin.y = self.view.bounds.height - kHeight
                     f.size.height = kHeight
                     self.containerView.frame = f
                 }    
             }
-            frameAnimator.addCompletion{ _ in
+            frameAnimator.addCompletion{ position in
+                switch position {
+                case .end:// allows only set new state when finished (not cancelled)
+                    self.state = self.state.nextState
+                default:
+                    break
+                }
+                
                 self.runningAnimators.removeAll()
-                self.state = state
             }
-            frameAnimator.startAnimation()
             runningAnimators.append(frameAnimator)
+            
+            // blur
+            let blurAnimator = UIViewPropertyAnimator(duration: duration, curve: .easeInOut)
+            if #available(iOS 11, *) {
+                blurAnimator.scrubsLinearly = false
+            }
+            blurAnimator.addAnimations {
+                switch state {
+                case .expanded:
+                    self.blurView.effect = UIBlurEffect(style: .dark)
+                case .collapsed:
+                    self.blurView.effect = nil
+                }
+            }
+            runningAnimators.append(blurAnimator)
+            
+            // label
+            let kOpenTopMargin: CGFloat = 20
+            let y = kOpenTopMargin - 0.5 * self.commentVC.closedTitleLabel.bounds.height
+            
+            let scaleAnimator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
+                switch state {
+                case .expanded:
+                    self.commentVC.closedTitleLabel.transform = CGAffineTransform(scaleX: 1.6, y: 1.6).concatenating(CGAffineTransform(translationX: 0, y: 20))
+                    self.commentVC.openTitleLabel.transform = CGAffineTransform(scaleX: 1.6, y: 1.6).concatenating(CGAffineTransform(translationX: 0, y: 20))
+                    self.commentVC.openTitleLabel.alpha = 1
+                    self.commentVC.closedTitleLabel.alpha = 0
+                case .collapsed:
+                    self.commentVC.closedTitleLabel.transform = .identity
+                    self.commentVC.openTitleLabel.transform = .identity
+                    self.commentVC.openTitleLabel.alpha = 0
+                    self.commentVC.closedTitleLabel.alpha = 1
+                }
+            }
+            runningAnimators.append(scaleAnimator)
+            
+            // an animator for the title that is transitioning into view
+            let inTitleAnimator = UIViewPropertyAnimator(duration: duration, curve: .easeIn, animations: {
+                switch state {
+                case .expanded:
+                    self.commentVC.openTitleLabel.alpha = 1
+                case .collapsed:
+                    self.commentVC.closedTitleLabel.alpha = 1
+                }
+            })
+            inTitleAnimator.scrubsLinearly = false
+            runningAnimators.append(inTitleAnimator)
+            
+            // an animator for the title that is transitioning out of view
+            let outTitleAnimator = UIViewPropertyAnimator(duration: duration, curve: .easeOut, animations: {
+                switch state {
+                case .expanded:
+                    self.commentVC.closedTitleLabel.alpha = 0
+                case .collapsed:
+                    self.commentVC.openTitleLabel.alpha = 0
+                }
+            })
+            outTitleAnimator.scrubsLinearly = false
+            runningAnimators.append(outTitleAnimator)
+            
+            // corner
+            containerView.clipsToBounds = true
+            // Corner mask
+            if #available(iOS 11, *) {
+                containerView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+            }
+            let cornerRadiusAnimator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
+                switch state {
+                case .expanded:
+                    self.containerView.layer.cornerRadius = 12
+                case .collapsed:
+                    self.containerView.layer.cornerRadius = 0
+                }
+            }
+            runningAnimators.append(cornerRadiusAnimator)
+            
+            // back button rotate
+            let backButtonAnimator = UIViewPropertyAnimator(duration: duration, curve: .linear) {
+                switch state {
+                case .expanded:
+                        self.backButton.transform = CGAffineTransform(rotationAngle: CGFloat(-Double.pi / 2))
+                case .collapsed:
+                        self.backButton.transform = CGAffineTransform.identity
+                }
+            }
+            runningAnimators.append(backButtonAnimator)
         }
     }
     
     func animateOrReverseRunningTransition(state: State, duration: TimeInterval) {
         if runningAnimators.isEmpty {
             animateTransitionIfNeeded(state: state, duration: duration)
+            runningAnimators.forEach({ $0.startAnimation() })
         } else {
             for animator in runningAnimators {
                 animator.isReversed = !animator.isReversed
@@ -112,39 +213,13 @@ class ViewController: UIViewController {
     }
     
     func startInteractiveTransition(state: State, duration: TimeInterval) {
-        if runningAnimators.isEmpty {
-            let frameAnimator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
-                switch state {
-                case .Expanded:
-                    self.containerView.frame = self.view.bounds
-                    print("expanded")
-                case .Collapsed:
-                    print("collapsed")
-                    var f = self.containerView.frame
-                    f.origin.y = self.view.bounds.height - kHeight
-                    f.size.height = kHeight
-                    self.containerView.frame = f
-                }
-            }
-            frameAnimator.addCompletion{ _ in
-                self.runningAnimators.removeAll()
-                self.interrupted = false
-            }
-            frameAnimator.pauseAnimation()
-            runningAnimators.append(frameAnimator)
-        } else {
-            self.interrupted = true
-            runningAnimators.forEach{
-                $0.pauseAnimation()
-                $0.isReversed = false
-            }
-        }
+        animateTransitionIfNeeded(state: state, duration: duration)
+        runningAnimators.forEach { $0.pauseAnimation() }
+        progressWhenInterrupted = runningAnimators.first?.fractionComplete ?? 0
     }
     
     func updateInteractiveTransition(fractionComplete: CGFloat) {
-//        let p = containerView.bounds.height / view.bounds.height
         runningAnimators.forEach {
-//            print("fractionComplete: \(fractionComplete)")
             $0.fractionComplete = fractionComplete
         }
     }
@@ -152,12 +227,11 @@ class ViewController: UIViewController {
     func continueInteractiveTransition(cancel: Bool) {
         if cancel {
             runningAnimators.forEach {
-                $0.isReversed = true
-                $0.startAnimation()
+                $0.isReversed = !$0.isReversed
+                $0.continueAnimation(withTimingParameters: nil, durationFactor: 0)
             }
         } else {
             runningAnimators.forEach {
-                state = state.other
                 $0.continueAnimation(withTimingParameters: nil, durationFactor: 0)
             }
         }

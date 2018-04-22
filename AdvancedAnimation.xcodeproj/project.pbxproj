@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C4E0E3E9208C30A40031BBB8 /* CommentViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E0E3E8208C30A40031BBB8 /* CommentViewController.swift */; };
 		C4EFBD652082EE7500A4D736 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4EFBD642082EE7500A4D736 /* AppDelegate.swift */; };
 		C4EFBD672082EE7500A4D736 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4EFBD662082EE7500A4D736 /* ViewController.swift */; };
 		C4EFBD6A2082EE7500A4D736 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C4EFBD682082EE7500A4D736 /* Main.storyboard */; };
@@ -15,6 +16,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		C4E0E3E8208C30A40031BBB8 /* CommentViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentViewController.swift; sourceTree = "<group>"; };
 		C4EFBD612082EE7500A4D736 /* AdvancedAnimation.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AdvancedAnimation.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C4EFBD642082EE7500A4D736 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C4EFBD662082EE7500A4D736 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -56,6 +58,7 @@
 			children = (
 				C4EFBD642082EE7500A4D736 /* AppDelegate.swift */,
 				C4EFBD662082EE7500A4D736 /* ViewController.swift */,
+				C4E0E3E8208C30A40031BBB8 /* CommentViewController.swift */,
 				C4EFBD682082EE7500A4D736 /* Main.storyboard */,
 				C4EFBD6B2082EE7700A4D736 /* Assets.xcassets */,
 				C4EFBD6D2082EE7700A4D736 /* LaunchScreen.storyboard */,
@@ -137,6 +140,7 @@
 			files = (
 				C4EFBD672082EE7500A4D736 /* ViewController.swift in Sources */,
 				C4EFBD652082EE7500A4D736 /* AppDelegate.swift in Sources */,
+				C4E0E3E9208C30A40031BBB8 /* CommentViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
