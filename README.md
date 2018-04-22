@@ -4,6 +4,15 @@ I could not find the source code for this [WWDC2017: 230_advanced_animation_with
 
 ![Screen capture](https://thumbs.gfycat.com/FormalAcceptableHorse-size_restricted.gif)
 
+**Animators:**
+
+* 	frame animator
+* 	blur animator
+* 	label 'view morphing'
+* 	corner radius animator
+* 	back button rotation animator
+
+	
 ## Referenced:
 
 * <https://github.com/nathangitter/interactive-animations>
